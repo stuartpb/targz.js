@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="gzip.js"></script>
+<script>
+  function showImg(f) {
+    var res = document.getElementById('results');
+    var e = document.createElement('div');
+    res.appendChild(e);
+    var p = document.createElement('p');
+    p.appendChild(document.createTextNode(f.filename + " (" + f.data.length + "): offset " + f.offset + ", size " + f.length));
+    e.appendChild(p);
+    var img = new Image();
+    var t = new Date;
+    var src = f.toDataURL();
+    var elapsed = new Date() - t;
+    p.appendChild(document.createTextNode(', toDataURL took ' + elapsed + ' ms'));
+    var t = new Date;
+    img.src = src;
+    img.style.maxHeight = '100px';
+    var elapsed = new Date() - t;
+    p.appendChild(document.createTextNode(', img.src = dataURL took ' + elapsed + ' ms'));
+    e.appendChild(img);
+  };
+  var alertError = function(xhr, e){ alert(e ? e : xhr.status); };
+  var loadingProgress = function(h) {
+    document.getElementById('progress').innerHTML = h.offset;
+  };
+  function loadText() {
+    var res = document.getElementById('results');
+    document.getElementById('progress').innerHTML = '...';
+    res.innerHTML = '';
+    GZip.load("zedbook.txt.gz", function(h) {
+      res.innerHTML += 'Loaded zedbook.txt.gz<br>';
+      var s = '';
+      for (var i in h) {
+        if (i != 'data') {
+          s += i + ': ' + h[i] + '\n';
+        }
+      }
+      var pre = document.createElement('pre');
+      pre.appendChild(document.createTextNode(s));
+      res.appendChild(pre);
+      res.innerHTML += '<br><br>';
+    }, loadingProgress, alertError);
+  }
+  function streamTarGZ() {
+    var res = document.getElementById('results');
+    document.getElementById('progress').innerHTML = '...';
+    res.innerHTML = '';
+    res.innerHTML += 'Loading test.tar.gz<br>';
+    var tgz = TarGZ.stream('test.tar.gz?t=' + (new Date().getTime()),
+      function(f,h) {
+        res.innerHTML += '<br>deflated to '+ h.outputSize +' bytes in ' + h.decompressionTime + ' ms';
+        showImg(f);
+      }, null, alertError);
+    tgz.ondata = loadingProgress;
+  }
+  function loadTarGZ() {
+    var res = document.getElementById('results');
+    document.getElementById('progress').innerHTML = '...';
+    res.innerHTML = '';
+    GZip.load('test.tar.gz', function(h) {
+      res.innerHTML += 'Loaded test.tar.gz<br>';
+      var tar = new TarGZ;
+      var t = new Date;
+      tar.parseTar(h.data.join(''));
+      var elapsed = new Date() - t;
+      res.innerHTML += '<br>deflated '+ h.outputSize +' bytes in ' + h.decompressionTime + ' ms';
+      res.innerHTML += '<br>parsed tar in ' + elapsed + ' ms';
+      tar.files.forEach(showImg);
+    }, loadingProgress, alertError);
+  }
+</script>
+</head>
+<body>
+<input type="reset" onclick="loadText();return false" value="Load 150k text gzip">
+<input type="reset" onclick="loadTarGZ();return false" value="Load 800k .tar.gz">
+<input type="reset" onclick="streamTarGZ();return false" value="Stream 800k .tar.gz">
+
+<div id="progress"></div>
+<div id="results"></div>
+</body>
+</html>
